@@ -50,7 +50,7 @@ jobs:
         run: |
           set +e
           SQS_URL=$(aws sqs get-queue-url --queue-name "$SQS_NAME" --region "$AWS_REGION" --query 'QueueUrl' --output text 2>/dev/null)
-          SQS_DLQ_URL=$(aws sqs get-queue-url --queue-name "SQS_DLQ_NAME" --region "$AWS_REGION" --query 'QueueUrl' --output text 2>/dev/null)
+          SQS_DLQ_URL=$(aws sqs get-queue-url --queue-name "$SQS_DLQ_NAME" --region "$AWS_REGION" --query 'QueueUrl' --output text 2>/dev/null)
           set -e
 
           if [ -n "$SQS_URL" ]; then
@@ -61,15 +61,16 @@ jobs:
             echo "⚠️ SQS não encontrado."
             echo "sqs_exists=false" >> $GITHUB_OUTPUT
           fi
-          
-          if [ -n "$SQS_URL" ]; then
-            echo "✅ SQS DQL encontrado: SQS_DLQ_URL"
+
+          if [ -n "$SQS_DLQ_URL" ]; then
+            echo "✅ SQS DLQ encontrado: $SQS_DLQ_URL"
             echo "sqs_dql_exists=true" >> $GITHUB_OUTPUT
-            echo "sqs_dql_url=SQS_DLQ_URL" >> $GITHUB_OUTPUT
+            echo "sqs_dql_url=$SQS_DLQ_URL" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ SQS DQL não encontrado."
+            echo "⚠️ SQS DLQ não encontrado."
             echo "sqs_dql_exists=false" >> $GITHUB_OUTPUT
           fi
+      
 
       - name: Importar SQS se existir
         if: steps.sqs_check.outputs.sqs_exists == 'true'

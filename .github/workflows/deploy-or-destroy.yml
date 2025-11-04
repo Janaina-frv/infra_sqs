@@ -16,8 +16,9 @@ jobs:
     env:
       AWS_REGION: us-east-1
       AWS_ACCOUNT_ID: 757367947438
-      TF_ACTION: destroy # Altere para "apply" ou "destroy"
+      TF_ACTION: apply # Altere para "apply" ou "destroy"
       SQS_NAME: feedback_urgente-sqs
+      SQS_DLQ_NAME: feedback_urgente-dlq
 
 
     steps:
@@ -49,6 +50,7 @@ jobs:
         run: |
           set +e
           SQS_URL=$(aws sqs get-queue-url --queue-name "$SQS_NAME" --region "$AWS_REGION" --query 'QueueUrl' --output text 2>/dev/null)
+          SQS_DLQ_URL=$(aws sqs get-queue-url --queue-name "SQS_DLQ_NAME" --region "$AWS_REGION" --query 'QueueUrl' --output text 2>/dev/null)
           set -e
 
           if [ -n "$SQS_URL" ]; then
@@ -59,6 +61,15 @@ jobs:
             echo "⚠️ SQS não encontrado."
             echo "sqs_exists=false" >> $GITHUB_OUTPUT
           fi
+          
+          if [ -n "$SQS_URL" ]; then
+            echo "✅ SQS DQL encontrado: SQS_DLQ_URL"
+            echo "sqs_dql_exists=true" >> $GITHUB_OUTPUT
+            echo "sqs_dql_url=SQS_DLQ_URL" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ SQS DQL não encontrado."
+            echo "sqs_dql_exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Importar SQS se existir
         if: steps.sqs_check.outputs.sqs_exists == 'true'
@@ -67,6 +78,14 @@ jobs:
           echo "Importando SQS para o estado..."
           terraform import aws_sqs_queue.feedback_urgente "${{ steps.sqs_check.outputs.sqs_url }}"
 
+      - name: Importar SQS DQL se existir
+        if: steps.sqs_check.outputs.sqs_dql_exists == 'true'
+        working-directory: infra
+        run: |
+          echo "Importando SQS DQL para o estado..."
+          terraform import aws_sqs_queue.dlq_feedback "${{ steps.sqs_check.outputs.sqs_dql_url }}"
+
+
       - name: Executar destroy da SQS
         if: env.TF_ACTION == 'destroy' && steps.sqs_check.outputs.sqs_exists == 'true'
         working-directory: infra
@@ -74,9 +93,23 @@ jobs:
           echo "Destruindo SQS..."
           terraform destroy -target=aws_sqs_queue.feedback_urgente -auto-approve
 
+      - name: Executar destroy da SQS DQL
+        if: env.TF_ACTION == 'destroy' && steps.sqs_check.outputs.sqs_dql_exists == 'true'
+        working-directory: infra
+        run: |
+          echo "Destruindo SQS DQL..."
+          terraform destroy -target=aws_sqs_queue.dlq_feedback -auto-approve
+
       - name: Executar apply da SQS
         if: env.TF_ACTION == 'apply' && steps.sqs_check.outputs.sqs_exists == 'false'
         working-directory: infra
         run: |
           echo "Criando SQS..."
           terraform apply -target=aws_sqs_queue.feedback_urgente -auto-approve
+
+      - name: Executar apply da SQS DQL
+        if: env.TF_ACTION == 'apply' && steps.sqs_check.outputs.sqs_dql_exists == 'false'
+        working-directory: infra
+        run: |
+          echo "Criando SQS DQL..."
+          terraform apply -target=aws_sqs_queue.dlq_feedback -auto-approve

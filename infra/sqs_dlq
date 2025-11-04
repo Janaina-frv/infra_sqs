@@ -1,3 +1,0 @@
-resource "aws_sqs_queue" "dlq_feedback" {
-  name = var.dlq_name
-}

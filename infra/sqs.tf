@@ -8,3 +8,7 @@ resource "aws_sqs_queue" "feedback_urgente" {
     maxReceiveCount     = var.max_receive_count
   })
 }
+
+resource "aws_sqs_queue" "dlq_feedback" {
+  name = var.dlq_name
+}

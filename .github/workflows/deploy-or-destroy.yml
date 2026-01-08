@@ -16,7 +16,7 @@ jobs:
     env:
       AWS_REGION: us-east-1
       AWS_ACCOUNT_ID: 757367947438
-      TF_ACTION: destroy # Altere para "apply" ou "destroy"
+      TF_ACTION: apply # Altere para "apply" ou "destroy"
       SQS_NAME: feedback_urgente-sqs
       SQS_DLQ_NAME: feedback_urgente-dlq
 
@@ -98,7 +98,7 @@ jobs:
         if: env.TF_ACTION == 'destroy' && steps.sqs_check.outputs.sqs_dql_exists == 'true'
         working-directory: infra
         run: |
-          echo "Destruindo SQS DQL..."
+          echo "Destruindo SQS DLQ..."
           terraform destroy -target=aws_sqs_queue.dlq_feedback -auto-approve
 
       - name: Executar apply da SQS
@@ -108,7 +108,7 @@ jobs:
           echo "Criando SQS..."
           terraform apply -target=aws_sqs_queue.feedback_urgente -auto-approve
 
-      - name: Executar apply da SQS DQL
+      - name: Executar apply da SQS DLQ
         if: env.TF_ACTION == 'apply' && steps.sqs_check.outputs.sqs_dql_exists == 'false'
         working-directory: infra
         run: |
